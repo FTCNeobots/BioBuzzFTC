@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 
@@ -25,10 +26,10 @@ public class FirstClass extends OpMode {
 
     @Override
     public void init() {
-        leftFront = hardwareMap.get(DcMotor.class, "lf");
-        leftBack = hardwareMap.get(DcMotor.class, "lb");
-        rightFront = hardwareMap.get(DcMotor.class, "rf");
         rightBack = hardwareMap.get(DcMotor.class, "rb");
+        rightFront = hardwareMap.get(DcMotor.class, "rf");
+        leftBack = hardwareMap.get(DcMotor.class, "lb");
+        leftFront = hardwareMap.get(DcMotor.class, "lf");
 
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
         pinpoint.setOffsets(0, 0, DistanceUnit.MM);
@@ -45,7 +46,8 @@ public class FirstClass extends OpMode {
     @Override
     public void loop() {
         pinpoint.update();
-        robotHeading = pinpoint.getYawScalar();
+        robotHeading = pinpoint.getHeading(AngleUnit.RADIANS);
+        telemetry.addData("Heading =", robotHeading);
 
         if(gamepad1.back){
             pinpoint.resetPosAndIMU();
