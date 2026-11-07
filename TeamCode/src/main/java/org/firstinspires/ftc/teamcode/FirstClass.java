@@ -28,8 +28,8 @@ public class FirstClass extends OpMode {
     GoBildaPinpointDriver pinpoint;
     double robotHeading;
     double intakeSpeed = 1;
-    double pFlywheel = 0;
-    double fFlywheel = 0;
+    double pFlywheel = 30;
+    double fFlywheel = 15;
 
 
     @Override
@@ -64,13 +64,16 @@ public class FirstClass extends OpMode {
         PIDFCoefficients pidfFlywheel = new PIDFCoefficients(pFlywheel, 0, 0, fFlywheel);
         flywheelA.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFlywheel);
         flywheelB.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFlywheel);
+
+
     }
 
 
     @Override
     public void start(){
 
-
+        flywheelA.setVelocity(0);
+        flywheelB.setVelocity(0);
 
     }
 
@@ -78,7 +81,10 @@ public class FirstClass extends OpMode {
     public void loop() {
         pinpoint.update();
         robotHeading = pinpoint.getHeading(AngleUnit.RADIANS);
+
         telemetry.addData("Heading = ", robotHeading);
+        telemetry.addData("Velocity: ", flywheelA.getVelocity()*TPStoRPM * 4/3);
+        telemetry.update();
 
         if(gamepad1.back){
             pinpoint.resetPosAndIMU();
@@ -105,8 +111,8 @@ public class FirstClass extends OpMode {
 
     double RPMtoTPS = 28.0/60.0;
     double TPStoRPM = 60.0/28.0;
-    double highVelocity = 5500 * RPMtoTPS;
-    double lowVelocity = 4000 * RPMtoTPS;
+    double highVelocity = 5500 * RPMtoTPS * 3/4;
+    double lowVelocity = 600 * RPMtoTPS * 3/4;
     double currentTargetVelocity = highVelocity;
 
 
@@ -122,6 +128,13 @@ public class FirstClass extends OpMode {
         if(gamepad1.dpad_down){
             flywheelA.setVelocity(0);
             flywheelB.setVelocity(0);
+        }
+
+        if(gamepad1.x){
+            currentTargetVelocity = lowVelocity;
+        }
+        if(gamepad1.y){
+            currentTargetVelocity = highVelocity;
         }
 
     }
