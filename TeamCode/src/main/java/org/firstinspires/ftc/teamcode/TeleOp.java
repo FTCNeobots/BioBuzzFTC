@@ -21,6 +21,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 * left shoulders: drive speed control
 * x: transfer off
 * y: transfer on
+* b: flipper
 *
 *
 *
@@ -41,6 +42,7 @@ public class TeleOp extends OpMode {
     DcMotor intake;
     DcMotor transfer;
     Servo flipper;
+    Servo turret;
     DcMotorEx flywheelA;
     DcMotorEx flywheelB;
     GoBildaPinpointDriver pinpoint;
@@ -69,12 +71,13 @@ public class TeleOp extends OpMode {
         rightBack.setDirection(DcMotorSimple.Direction.REVERSE);
 
         intake = hardwareMap.get(DcMotor.class, "intake");
-        intake.setDirection(DcMotorSimple.Direction.FORWARD);
+        intake.setDirection(DcMotorSimple.Direction.REVERSE);
 
         transfer = hardwareMap.get(DcMotor.class, "transfer");
         transfer.setDirection(DcMotorSimple.Direction.FORWARD);
 
         flipper = hardwareMap.get(Servo.class, "flipper");
+        turret = hardwareMap.get(Servo.class, "turret");
 
         flywheelA = hardwareMap.get(DcMotorEx.class, "fa");
         flywheelB = hardwareMap.get(DcMotorEx.class, "fb");
@@ -99,6 +102,7 @@ public class TeleOp extends OpMode {
         flywheelB.setVelocity(0);
 
         flipper.setPosition(downPos);
+        turret.setPosition(1);
     }
 
     @Override
@@ -106,7 +110,7 @@ public class TeleOp extends OpMode {
         pinpoint.update();
         robotHeading = pinpoint.getHeading(AngleUnit.RADIANS);
 
-        telemetry.addData("Current target velocity: ", currentTargetVelocity);
+        telemetry.addData("Current target velocity: ", currentTargetVelocity * TPStoRPM);
         telemetry.addData("Current velocity A: ", flywheelA.getVelocity() * TPStoRPM);
         telemetry.addData("Current velocity B: ", flywheelB.getVelocity() * TPStoRPM);
         telemetry.update();
@@ -141,17 +145,18 @@ public class TeleOp extends OpMode {
     void IntakeControl(){
         if(gamepad1.right_bumper){
             intake.setPower(intakeSpeed);
-        }
-        if(gamepad1.right_trigger > 0){
+        }else if(gamepad1.right_trigger > 0){
             intake.setPower(-intakeSpeed);
+        }else{
+            intake.setPower(0);
         }
     }
 
 
     double RPMtoTPS = (28.0/60.0) * 3/4;
     double TPStoRPM = (60.0/28.0) * 4/3;
-    double highVelocity = 5500 * RPMtoTPS;
-    double lowVelocity = 600 * RPMtoTPS;
+    double highVelocity = 3000 * RPMtoTPS;
+    double lowVelocity = 1500 * RPMtoTPS;
     double currentTargetVelocity = highVelocity;
 
 
@@ -196,8 +201,8 @@ public class TeleOp extends OpMode {
 
 
     double currentTime;
-    double upPos = 1;
-    double downPos = 0;
+    double upPos = 0.8;
+    double downPos = 0.5;
     double cooldownTime = 0.5;
     int flipperState = 1;
 
@@ -228,8 +233,4 @@ public class TeleOp extends OpMode {
                 break;
         }
     }
-
-
-
-
 }
