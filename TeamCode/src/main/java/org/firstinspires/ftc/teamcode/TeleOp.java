@@ -2,27 +2,45 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 
-@TeleOp(name = "FirstClass")
-public class FirstClass extends OpMode {
+/*
+* controls:
+* Joysticks: movement (field-centric)
+* Back: reset yaw
+* Dpad: flywheel control
+* right shoulders: intake
+* left shoulders: drive speed control
+* x: transfer off
+* y: transfer on
+*
+*
+*
+*
+* */
+
+
+@com.qualcomm.robotcore.eventloop.opmode.TeleOp(name = "TeleOp")
+public class TeleOp extends OpMode {
 
     //stores the values of the speeds the motor has to move at in this order: LF, LB, RF, RB
     double[] motorSpeeds = new double[4];
-    double maxSpeed = 1;
+    double maxSpeed = 0.5;
     DcMotor leftFront;
     DcMotor leftBack;
     DcMotor rightFront;
     DcMotor rightBack;
     DcMotor intake;
+    DcMotor transfer;
+    Servo flipper;
     DcMotorEx flywheelA;
     DcMotorEx flywheelB;
     GoBildaPinpointDriver pinpoint;
@@ -53,6 +71,11 @@ public class FirstClass extends OpMode {
         intake = hardwareMap.get(DcMotor.class, "intake");
         intake.setDirection(DcMotorSimple.Direction.FORWARD);
 
+        transfer = hardwareMap.get(DcMotor.class, "transfer");
+        transfer.setDirection(DcMotorSimple.Direction.FORWARD);
+
+        flipper = hardwareMap.get(Servo.class, "flipper");
+
         flywheelA = hardwareMap.get(DcMotorEx.class, "fa");
         flywheelB = hardwareMap.get(DcMotorEx.class, "fb");
 
@@ -75,6 +98,7 @@ public class FirstClass extends OpMode {
         flywheelA.setVelocity(0);
         flywheelB.setVelocity(0);
 
+        flipper.setPosition(downPos);
     }
 
     @Override
@@ -82,20 +106,35 @@ public class FirstClass extends OpMode {
         pinpoint.update();
         robotHeading = pinpoint.getHeading(AngleUnit.RADIANS);
 
-        telemetry.addData("Heading = ", robotHeading);
-        telemetry.addData("Velocity: ", flywheelA.getVelocity()*TPStoRPM * 4/3);
+        telemetry.addData("Current target velocity: ", currentTargetVelocity);
+        telemetry.addData("Current velocity A: ", flywheelA.getVelocity() * TPStoRPM);
+        telemetry.addData("Current velocity B: ", flywheelB.getVelocity() * TPStoRPM);
         telemetry.update();
+
+        DriveTrain();
+        IntakeControl();
+        FlywheelControl();
+        TransferControl();
+        FlipperControl();
+    }
+
+    void DriveTrain(){
+
+        if(gamepad1.left_trigger > 0){
+            maxSpeed = 1;
+        }else if(gamepad1.left_bumper){
+            maxSpeed = 0.3;
+        }else{
+            maxSpeed = 0.5;
+        }
 
         if(gamepad1.back){
             pinpoint.resetPosAndIMU();
         }
 
-
         motorSpeeds = MDT.Mecanum(maxSpeed, gamepad1.left_stick_x, gamepad1.left_stick_y, gamepad1.right_stick_x, robotHeading);
         leftFront.setPower(motorSpeeds[0]);leftBack.setPower(motorSpeeds[1]);rightFront.setPower(motorSpeeds[2]);rightBack.setPower(motorSpeeds[3]);
 
-        IntakeControl();
-        FlywheelControl();
     }
 
     ///Allows intake to spin both ways using right bumper and trigger
@@ -109,10 +148,10 @@ public class FirstClass extends OpMode {
     }
 
 
-    double RPMtoTPS = 28.0/60.0;
-    double TPStoRPM = 60.0/28.0;
-    double highVelocity = 5500 * RPMtoTPS * 3/4;
-    double lowVelocity = 600 * RPMtoTPS * 3/4;
+    double RPMtoTPS = (28.0/60.0) * 3/4;
+    double TPStoRPM = (60.0/28.0) * 4/3;
+    double highVelocity = 5500 * RPMtoTPS;
+    double lowVelocity = 600 * RPMtoTPS;
     double currentTargetVelocity = highVelocity;
 
 
@@ -130,18 +169,66 @@ public class FirstClass extends OpMode {
             flywheelB.setVelocity(0);
         }
 
-        if(gamepad1.x){
+        if(gamepad1.dpad_left){
             currentTargetVelocity = lowVelocity;
+            flywheelA.setVelocity(currentTargetVelocity);
+            flywheelB.setVelocity(currentTargetVelocity);
         }
-        if(gamepad1.y){
+
+        if(gamepad1.dpad_right){
             currentTargetVelocity = highVelocity;
+            flywheelA.setVelocity(currentTargetVelocity);
+            flywheelB.setVelocity(currentTargetVelocity);
+        }
+
+    }
+
+    void TransferControl(){
+
+        if(gamepad1.y){
+            transfer.setPower(1);
+        }
+        if(gamepad1.x){
+            transfer.setPower(0);
         }
 
     }
 
 
-    //TO DO:
-    //Flywheel can shoot, different RPMs
+    double currentTime;
+    double upPos = 1;
+    double downPos = 0;
+    double cooldownTime = 0.5;
+    int flipperState = 1;
+
+    void FlipperControl(){
+        switch (flipperState){
+            //down position, waiting for input
+            case 1:
+                flipper.setPosition(downPos);
+                if(gamepad1.b){
+                    currentTime = getRuntime();
+                    flipper.setPosition(upPos);
+                    flipperState = 2;
+                }
+                break;
+            //moving up
+            case 2:
+                if((getRuntime()-currentTime) > cooldownTime){
+                    currentTime = getRuntime();
+                    flipper.setPosition(downPos);
+                    flipperState = 3;
+                }
+                break;
+            //moving down
+            case 3:
+                if((getRuntime()-currentTime) > cooldownTime){
+                    flipperState = 1;
+                }
+                break;
+        }
+    }
+
 
 
 
